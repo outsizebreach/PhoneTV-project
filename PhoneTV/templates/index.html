@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhoneTV Music Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #080c14;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Tahoma', sans-serif;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 32px;
+        }
+        
+        /* نوار بالای مینیمال */
+        .top-bar {
+            width: 100%;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+            margin-bottom: 8px;
+        }
+        
+        .top-bar-text {
+            font-size: 11px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.35);
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+        
+        /* تصویر پروفایل */
+        .profile-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        
+        .profile-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .profile-image .fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            opacity: 0.3;
+        }
+        
+        /* متن تقدیم */
+        .dedication {
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.45);
+            letter-spacing: 0.03em;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        .dedication .emoji {
+            font-size: 15px;
+        }
+        
+        /* عنوان اصلی */
+        .main-title {
+            font-size: 36px;
+            font-weight: 700;
+            color: #ffffff;
+            text-align: center;
+            letter-spacing: -0.03em;
+            line-height: 1.2;
+        }
+        
+        .main-title span {
+            color: #5a9de8;
+        }
+        
+        /* دکمه‌ها */
+        .buttons {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 24px;
+            border-radius: 18px;
+            text-decoration: none;
+            font-size: 20px;
+            font-weight: 600;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Tahoma', sans-serif;
+            letter-spacing: -0.02em;
+            transition: all 0.25s ease;
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+        
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .btn-control {
+            border-color: rgba(90, 157, 232, 0.3);
+        }
+        
+        .btn-control:hover {
+            border-color: rgba(90, 157, 232, 0.5);
+            box-shadow: 0 8px 32px rgba(90, 157, 232, 0.15);
+        }
+        
+        .btn-player {
+            border-color: rgba(255, 111, 0, 0.3);
+        }
+        
+        .btn-player:hover {
+            border-color: rgba(255, 111, 0, 0.5);
+            box-shadow: 0 8px 32px rgba(255, 111, 0, 0.15);
+        }
+        
+        .btn-icon {
+            font-size: 26px;
+            flex-shrink: 0;
+        }
+        
+        .btn-label {
+            flex: 1;
+            text-align: left;
+        }
+        
+        .btn-sub {
+            font-size: 11px;
+            font-weight: 400;
+            opacity: 0.5;
+            letter-spacing: 0.04em;
+            margin-top: 2px;
+        }
+        
+        .btn-arrow {
+            opacity: 0.3;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        /* فوتر */
+        .footer {
+            margin-top: 8px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.2);
+            letter-spacing: 0.05em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- نوار بالای مینیمال -->
+        <div class="top-bar">
+            <span class="top-bar-text">Welcome! &nbsp;·&nbsp; PhoneTV Music Player</span>
+        </div>
+        
+        <!-- تصویر پروفایل -->
+        <div class="profile-image">
+            <img id="profileImg" src="/static/profile.jpg" alt="Profile" onerror="this.style.display='none'; document.getElementById('fallbackIcon').style.display='flex';">
+            <div class="fallback" id="fallbackIcon" style="display:none;">🎵</div>
+        </div>
+        
+        <!-- متن تقدیم -->
+        <div class="dedication">
+            God bless <strong>SHAYAN</strong> <span class="emoji">🥀</span>
+        </div>
+        
+        <!-- عنوان اصلی -->
+        <div class="main-title">
+            Choose your <span>device</span>
+        </div>
+        
+        <!-- دکمه‌ها -->
+        <div class="buttons">
+            <a href="/control" class="btn btn-control">
+                <span class="btn-icon">📱</span>
+                <span class="btn-label">
+                    Control
+                    <div class="btn-sub">Phone</div>
+                </span>
+                <span class="btn-arrow">→</span>
+            </a>
+            
+            <a href="/player" class="btn btn-player">
+                <span class="btn-icon">📺</span>
+                <span class="btn-label">
+                    Player
+                    <div class="btn-sub">TV</div>
+                </span>
+                <span class="btn-arrow">→</span>
+            </a>
+        </div>
+        
+        <!-- فوتر -->
+        <div class="footer">
+            v1.0
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پخش‌کننده تلویزیون</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #080c14;
+            font-family: Tahoma, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 3rem;
+            color: #ffffff;
+        }
+        
+        .tv-root {
+            position: relative;
+            background: #080c14;
+            min-height: 600px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 1400px;
+        }
+        
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(8, 12, 20, 0.94);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            border-radius: 24px;
+        }
+        
+        .overlay-btn {
+            background: #1a2540;
+            border: 1px solid #2a3a60;
+            color: #ffffff;
+            padding: 32px 80px;
+            border-radius: 24px;
+            font-size: 42px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            letter-spacing: 0.03em;
+            transition: background 0.2s;
+        }
+        
+        .overlay-btn:hover {
+            background: #1f2e50;
+        }
+        
+        .overlay-btn span {
+            font-size: 48px;
+        }
+        
+        .player-wrap {
+            display: flex;
+            align-items: center;
+            gap: 80px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        
+        .cover-box {
+            width: 400px;
+            height: 400px;
+            flex-shrink: 0;
+            background: #0e1520;
+            border: 1px solid #1e2d4a;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .cover-box .cover-icon {
+            font-size: 120px;
+            color: #1e3358;
+        }
+        
+        .cover-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .info-area {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #2a5a9e;
+            flex-shrink: 0;
+        }
+        
+        .status-dot.playing {
+            background: #5a9de8;
+            animation: blink 1.2s ease-in-out infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.25; }
+        }
+        
+        .status-text {
+            font-size: 18px;
+            color: #ffffff;
+            font-weight: bold;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        
+        .song-title {
+            font-size: 42px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 20px;
+            line-height: 1.3;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .song-idle {
+            color: #ffffff;
+            opacity: 0.6;
+        }
+        
+        .progress-row {
+            margin-top: 40px;
+        }
+        
+        .prog-track {
+            height: 6px;
+            background: #111826;
+            border-radius: 3px;
+        }
+        
+        .prog-fill {
+            height: 100%;
+            background: #3a72c4;
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        
+        .vol-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-top: 24px;
+        }
+        
+        .vol-label {
+            font-size: 16px;
+            color: #ffffff;
+            font-weight: bold;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            min-width: 65px;
+        }
+        
+        .vol-track {
+            flex: 1;
+            height: 4px;
+            background: #111826;
+            border-radius: 2px;
+            max-width: 180px;
+        }
+        
+        .vol-fill {
+            height: 100%;
+            background: #3a72c4;
+            border-radius: 2px;
+            width: 50%;
+            transition: width 0.15s;
+        }
+        
+        .vol-pct {
+            font-size: 16px;
+            color: #ffffff;
+            font-weight: bold;
+            min-width: 42px;
+            text-align: right;
+        }
+        
+        /* ریسپانسیو برای صفحه‌های کوچکتر */
+        @media (max-width: 1024px) {
+            .player-wrap {
+                flex-direction: column;
+                gap: 50px;
+            }
+            .cover-box {
+                width: 350px;
+                height: 350px;
+            }
+            .song-title {
+                font-size: 34px;
+            }
+            .overlay-btn {
+                font-size: 34px;
+                padding: 24px 60px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .cover-box {
+                width: 280px;
+                height: 280px;
+            }
+            .cover-box .cover-icon {
+                font-size: 90px;
+            }
+            .song-title {
+                font-size: 28px;
+            }
+            .overlay-btn {
+                font-size: 28px;
+                padding: 20px 48px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="tv-root" id="tvRoot">
+        <!-- پوشش شروع -->
+        <div class="overlay" id="startOverlay">
+            <button class="overlay-btn" id="startBtn">
+                <span>▶</span>
+                Tap to Start
+            </button>
+        </div>
+        
+        <!-- پلیر اصلی -->
+        <div class="player-wrap">
+            <!-- کاور آلبوم -->
+            <div class="cover-box" id="coverBox">
+                <span class="cover-icon">🎵</span>
+                <img class="cover-img" id="coverImg" alt="Album art">
+            </div>
+            
+            <!-- اطلاعات آهنگ -->
+            <div class="info-area">
+                <!-- وضعیت پخش -->
+                <div class="status-row">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span class="status-text" id="statusText">IDLE</span>
+                </div>
+                
+                <!-- نام آهنگ -->
+                <div class="song-title song-idle" id="songTitle">Waiting for track...</div>
+                
+                <!-- نوار پیشرفت -->
+                <div class="progress-row">
+                    <div class="prog-track">
+                        <div class="prog-fill" id="progFill"></div>
+                    </div>
+                </div>
+                
+                <!-- نمایش صدا -->
+                <div class="vol-row">
+                    <span class="vol-label">VOLUME</span>
+                    <div class="vol-track">
+                        <div class="vol-fill" id="volFill"></div>
+                    </div>
+                    <span class="vol-pct" id="volPct">50%</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- پلیر صوتی مخفی -->
+        <audio id="audioPlayer" preload="auto" style="display: none;"></audio>
+    </div>
+
+    <script>
+        const audio = document.getElementById('audioPlayer');
+        const songTitle = document.getElementById('songTitle');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const startOverlay = document.getElementById('startOverlay');
+        const coverBox = document.getElementById('coverBox');
+        const coverImg = document.getElementById('coverImg');
+        const progFill = document.getElementById('progFill');
+        const volFill = document.getElementById('volFill');
+        const volPct = document.getElementById('volPct');
+
+        // تنظیم حجم اولیه
+        audio.volume = 0.5;
+
+        // به‌روزرسانی نوار پیشرفت
+        audio.addEventListener('timeupdate', () => {
+            if (audio.duration) {
+                const progress = (audio.currentTime / audio.duration) * 100;
+                progFill.style.width = Math.round(progress) + '%';
+            }
+        });
+
+        // به‌روزرسانی کاور
+        function updateCover(coverData) {
+            const iconSpan = coverBox.querySelector('.cover-icon');
+            if (coverData) {
+                coverImg.src = 'data:image/jpeg;base64,' + coverData;
+                coverImg.style.display = 'block';
+                if (iconSpan) iconSpan.style.display = 'none';
+            } else {
+                coverImg.style.display = 'none';
+                if (iconSpan) iconSpan.style.display = '';
+            }
+        }
+
+        // تنظیم وضعیت پخش
+        function setPlaying(playing) {
+            if (playing) {
+                statusDot.classList.add('playing');
+                statusText.textContent = 'NOW PLAYING';
+            } else {
+                statusDot.classList.remove('playing');
+                statusText.textContent = 'PAUSED';
+            }
+        }
+
+        // کلیک روی دکمه شروع
+        document.getElementById('startBtn').addEventListener('click', () => {
+            startOverlay.style.display = 'none';
+            
+            const socket = io();
+            
+            socket.on('state', (state) => {
+                if (!state.song) {
+                    songTitle.textContent = 'Waiting for track...';
+                    songTitle.classList.add('song-idle');
+                    statusText.textContent = 'IDLE';
+                    statusDot.classList.remove('playing');
+                    audio.pause();
+                    updateCover(null);
+                    progFill.style.width = '0%';
+                    return;
+                }
+                
+                songTitle.textContent = state.song;
+                songTitle.classList.remove('song-idle');
+                updateCover(state.cover_art);
+                
+                const src = '/music/' + encodeURIComponent(state.song_file || state.song);
+                if (audio.src !== window.location.origin + src) {
+                    audio.src = src;
+                    audio.load();
+                    progFill.style.width = '0%';
+                }
+                
+                if (state.playing) {
+                    audio.play().catch(() => {});
+                    setPlaying(true);
+                } else {
+                    audio.pause();
+                    setPlaying(false);
+                }
+            });
+            
+            socket.on('volume_change', (data) => {
+                audio.volume = data.volume;
+                const pct = Math.round(data.volume * 100);
+                volFill.style.width = pct + '%';
+                volPct.textContent = pct + '%';
+            });
+        });
+    </script>
+    <script>
+    // دکمه تمام‌صفحه با کلید F یا دابل‌کلیک
+    document.addEventListener('dblclick', () => {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else {
+            document.documentElement.requestFullscreen();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'f' || e.key === 'F') {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.documentElement.requestFullscreen();
+            }
+        }
+    });
+</script>
+</body>
+</html>

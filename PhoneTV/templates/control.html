@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>کنترل پخش</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        body {
+            background: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Tahoma', sans-serif;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            position: relative;
+        }
+        
+        .phone-container {
+            width: 100%;
+            max-width: 440px;
+            height: 100%;
+            max-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        /* دکمه رفرش - گوشه بالا چپ */
+        .refresh-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s ease;
+            z-index: 100;
+        }
+        
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .refresh-btn:active {
+            transform: scale(0.85);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .refresh-btn svg {
+            width: 14px;
+            height: 14px;
+            transition: transform 0.4s ease;
+        }
+        
+        .refresh-btn:active svg {
+            transform: rotate(180deg);
+        }
+        
+        /* ────────────────────────── */
+        /* ۱. کارت کاور و اسم - کم‌ارتفاع */
+        /* ────────────────────────── */
+        .cover-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.12);
+            border-radius: 28px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .mini-cover {
+            width: 56px;
+            height: 56px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .mini-cover .cover-icon {
+            font-size: 22px;
+            opacity: 0.3;
+        }
+        
+        .mini-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+        
+        .mini-cover.paused::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 14px;
+        }
+        
+        .song-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .song-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffffff;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.25;
+            max-height: 36px;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            letter-spacing: -0.02em;
+            text-align: right;
+        }
+        
+        .song-name.idle {
+            opacity: 0.4;
+        }
+        
+        /* ────────────────────────── */
+        /* ۲. لیست + سرچ ادغام شده */
+        /* ────────────────────────── */
+        .playlist-card {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.08);
+            border-radius: 28px;
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+        }
+        
+        .search-box {
+            margin: 12px 14px 8px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 0.5px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 9px 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        
+        .search-icon {
+            flex-shrink: 0;
+            opacity: 0.5;
+        }
+        
+        .search-input {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            color: #ffffff;
+            font-size: 15px;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            letter-spacing: -0.02em;
+        }
+        
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .search-clear {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            color: #ffffff;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        
+        .search-clear.visible {
+            display: flex;
+        }
+        
+        .search-clear:active {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .playlist-header {
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            padding: 10px 20px 8px;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .song-count {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.3);
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .song-list {
+            list-style: none;
+            overflow-y: auto;
+            flex: 1;
+            padding-bottom: 8px;
+        }
+        
+        .song-list::-webkit-scrollbar {
+            width: 2px;
+        }
+        
+        .song-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .song-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 100px;
+        }
+        
+        .song-list li {
+            padding: 14px 20px;
+            cursor: pointer;
+            font-size: 17px;
+            font-weight: 400;
+            color: #ffffff;
+            transition: all 0.15s ease;
+            word-wrap: break-word;
+            letter-spacing: -0.02em;
+            position: relative;
+            display: none;
+        }
+        
+        .song-list li.visible {
+            display: block;
+        }
+        
+        .song-list li::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20px;
+            right: 20px;
+            height: 0.5px;
+            background: rgba(255, 255, 255, 0.06);
+        }
+        
+        .song-list li:last-child::after {
+            display: none;
+        }
+        
+        .song-list li:active {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .song-list li.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            font-weight: 500;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 14px;
+            display: none;
+        }
+        
+        .no-results.visible {
+            display: block;
+        }
+        
+        /* ──────────────────────────────────── */
+        /* ۳. کارت ولوم و دکمه پلی - پایین */
+        /* ──────────────────────────────────── */
+        .bottom-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.12);
+            border-radius: 28px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-shrink: 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            direction: ltr;
+        }
+        
+        .volume-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            user-select: none;
+            -webkit-user-select: none;
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .vol-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+        
+        .vol-slider-container {
+            flex: 1;
+            position: relative;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            touch-action: none;
+        }
+        
+        .vol-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 100px;
+            position: relative;
+            overflow: visible;
+        }
+        
+        .vol-fill {
+            height: 100%;
+            background: #ffffff;
+            border-radius: 100px;
+            width: 50%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        
+        .vol-thumb {
+            width: 26px;
+            height: 26px;
+            background: #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.05);
+            pointer-events: none;
+            z-index: 2;
+            transition: left 0.05s ease-out, transform 0.15s ease;
+        }
+        
+        .vol-slider-container:active .vol-thumb {
+            transform: translate(-50%, -50%) scale(1.15);
+        }
+        
+        .vol-percent {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            min-width: 32px;
+            text-align: center;
+            flex-shrink: 0;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .btn-play-pause {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.12);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .btn-play-pause:active {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(0.95);
+        }
+        
+        .btn-play-pause:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .btn-play-pause:disabled:active {
+            background: rgba(255, 255, 255, 0.12);
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body>
+    <!-- دکمه رفرش - گوشه بالا چپ -->
+    <button class="refresh-btn" id="refreshBtn" title="Refresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+    </button>
+
+    <div class="phone-container">
+        <!-- ۱. کارت کاور و اسم - کم‌ارتفاع -->
+        <div class="cover-card">
+            <div class="mini-cover" id="miniCover">
+                <span class="cover-icon">🎵</span>
+                <img id="coverImg" alt="کاور">
+            </div>
+            <div class="song-info">
+                <div class="song-name idle" id="nowPlaying">Select a song</div>
+            </div>
+        </div>
+        
+        <!-- ۲. لیست + سرچ ادغام شده -->
+        <div class="playlist-card">
+            <div class="search-box">
+                <span class="search-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </span>
+                <input type="text" class="search-input" id="searchInput" placeholder="Search" autocomplete="off">
+                <button class="search-clear" id="searchClear">✕</button>
+            </div>
+            
+            <div class="playlist-header">
+                <span>Library</span>
+                <span class="song-count" id="songCount"></span>
+            </div>
+            
+            <ul class="song-list" id="songList"></ul>
+            <div class="no-results" id="noResults">No songs found</div>
+        </div>
+        
+        <!-- ۳. کارت ولوم و دکمه پلی -->
+        <div class="bottom-card">
+            <div class="volume-row">
+                <span class="vol-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white" opacity="0.6">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                    </svg>
+                </span>
+                <div class="vol-slider-container" id="volSlider">
+                    <div class="vol-track">
+                        <div class="vol-fill" id="volFill"></div>
+                    </div>
+                    <div class="vol-thumb" id="volThumb"></div>
+                </div>
+                <span class="vol-percent" id="volPct">50%</span>
+            </div>
+            
+            <button class="btn-play-pause" id="playPauseBtn" disabled>
+                <svg id="playIcon" width="18" height="18" viewBox="0 0 24 24" fill="white">
+                    <path d="M8 5.14v14l11-7-11-7z"/>
+                </svg>
+                <svg id="pauseIcon" width="18" height="18" viewBox="0 0 24 24" fill="white" style="display:none;">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const songListEl = document.getElementById('songList');
+        const nowPlayingEl = document.getElementById('nowPlaying');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const volSlider = document.getElementById('volSlider');
+        const volFill = document.getElementById('volFill');
+        const volThumb = document.getElementById('volThumb');
+        const volPct = document.getElementById('volPct');
+        const miniCover = document.getElementById('miniCover');
+        const coverImg = document.getElementById('coverImg');
+        const searchInput = document.getElementById('searchInput');
+        const searchClear = document.getElementById('searchClear');
+        const songCount = document.getElementById('songCount');
+        const noResults = document.getElementById('noResults');
+        const refreshBtn = document.getElementById('refreshBtn');
+
+        let currentVolume = 50;
+        let isDragging = false;
+        let allSongs = [];
+        let isPlaying = false;
+        let hasSong = false;
+
+        // دکمه رفرش
+        refreshBtn.addEventListener('click', () => {
+            location.reload();
+        });
+
+        function updateVolumeUI(volume) {
+            currentVolume = volume;
+            volFill.style.width = volume + '%';
+            volThumb.style.left = volume + '%';
+            volPct.textContent = volume + '%';
+        }
+
+        function emitVolume(volume) {
+            socket.emit('volume_change', { volume: volume / 100 });
+        }
+
+        function updatePlayPauseButton() {
+            playPauseBtn.disabled = !hasSong;
+            if (isPlaying) {
+                playIcon.style.display = 'none';
+                pauseIcon.style.display = 'block';
+                miniCover.classList.remove('paused');
+            } else {
+                playIcon.style.display = 'block';
+                pauseIcon.style.display = 'none';
+                if (hasSong) {
+                    miniCover.classList.add('paused');
+                } else {
+                    miniCover.classList.remove('paused');
+                }
+            }
+        }
+
+        function getVolumeFromEvent(e) {
+            const rect = volSlider.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let x = clientX - rect.left;
+            x = Math.max(0, Math.min(x, rect.width));
+            return Math.round((x / rect.width) * 100);
+        }
+
+        volSlider.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            const vol = getVolumeFromEvent(e);
+            updateVolumeUI(vol);
+            emitVolume(vol);
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const vol = getVolumeFromEvent(e);
+                updateVolumeUI(vol);
+                emitVolume(vol);
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) isDragging = false;
+        });
+
+        volSlider.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            const vol = getVolumeFromEvent(e);
+            updateVolumeUI(vol);
+            emitVolume(vol);
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (isDragging) {
+                const vol = getVolumeFromEvent(e);
+                updateVolumeUI(vol);
+                emitVolume(vol);
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', () => {
+            if (isDragging) isDragging = false;
+        });
+
+        playPauseBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                socket.emit('pause');
+            } else {
+                socket.emit('play');
+            }
+        });
+
+        function filterSongs(query) {
+            query = query.toLowerCase().trim();
+            let visibleCount = 0;
+            const items = songListEl.querySelectorAll('li');
+            items.forEach(li => {
+                const text = li.textContent.toLowerCase();
+                if (query === '' || text.includes(query)) {
+                    li.classList.add('visible');
+                    visibleCount++;
+                } else {
+                    li.classList.remove('visible');
+                }
+            });
+            if (query === '') {
+                songCount.textContent = allSongs.length + ' songs';
+            } else {
+                songCount.textContent = visibleCount + ' of ' + allSongs.length;
+            }
+            if (visibleCount === 0 && allSongs.length > 0) {
+                noResults.classList.add('visible');
+            } else {
+                noResults.classList.remove('visible');
+            }
+            if (query !== '') {
+                searchClear.classList.add('visible');
+            } else {
+                searchClear.classList.remove('visible');
+            }
+        }
+
+        searchInput.addEventListener('input', () => {
+            filterSongs(searchInput.value);
+        });
+
+        searchClear.addEventListener('click', () => {
+            searchInput.value = '';
+            filterSongs('');
+            searchInput.focus();
+        });
+
+        fetch('/api/songs')
+            .then(res => res.json())
+            .then(songs => {
+                allSongs = songs;
+                songs.forEach(song => {
+                    const li = document.createElement('li');
+                    li.textContent = song;
+                    li.classList.add('visible');
+                    li.addEventListener('click', () => {
+                        socket.emit('play_song', { song: song });
+                    });
+                    songListEl.appendChild(li);
+                });
+                songCount.textContent = songs.length + ' songs';
+            });
+
+        socket.on('state', (state) => {
+            hasSong = !!state.song;
+            isPlaying = state.playing;
+            if (state.song) {
+                nowPlayingEl.textContent = state.song;
+                nowPlayingEl.classList.remove('idle');
+            } else {
+                nowPlayingEl.textContent = 'Select a song';
+                nowPlayingEl.classList.add('idle');
+            }
+            updatePlayPauseButton();
+            const iconSpan = miniCover.querySelector('.cover-icon');
+            if (state.cover_art) {
+                coverImg.src = 'data:image/jpeg;base64,' + state.cover_art;
+                coverImg.style.display = 'block';
+                if (iconSpan) iconSpan.style.display = 'none';
+            } else {
+                coverImg.style.display = 'none';
+                if (iconSpan) iconSpan.style.display = '';
+            }
+            document.querySelectorAll('.song-list li').forEach(li => {
+                li.classList.remove('active');
+                if (state.song && li.textContent === state.song) {
+                    li.classList.add('active');
+                }
+            });
+        });
+
+        socket.on('connect', () => {
+            emitVolume(currentVolume);
+        });
+
+        updateVolumeUI(currentVolume);
+        updatePlayPauseButton();
+    </script>
+</body>
+</html>

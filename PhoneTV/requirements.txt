@@ -1,0 +1,6 @@
+flask==3.1.0
+flask-socketio==5.5.1
+mutagen==1.47.0
+pillow==11.2.1
+python-engineio==4.11.2
+python-socketio==5.12.1
